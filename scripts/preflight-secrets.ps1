@@ -4,12 +4,13 @@ param([switch]$History)
 
 $ErrorActionPreference = 'Stop'
 $repo = Split-Path $PSScriptRoot -Parent
+# 模式本身用拼接写，避免这份脚本自己命中扫描（同时让第三方 grep 也保持干净）
 $patterns = @(
-  'admin', 'C:\\Users', 'C:/Users', 'AppData',
-  'AI/envs', 'D:\\Code', 'D:/Code', 'DsCode',
-  'gho_', 'ghp_', 'github_pat', 'xoxb-', 'AKIA',
-  '192\.168\.', '10\.0\.\d', '169\.254',
-  'password\s*[:=]', 'secret\s*[:=]', 'token\s*[:=]'
+  ('ad' + 'min'), ('C:' + '\\Users'), ('C:' + '/Users'), ('App' + 'Data'),
+  ('AI/' + 'envs'), ('D:' + '\\Code'), ('D:' + '/Code'), ('Ds' + 'Code'),
+  ('gh' + 'o_'), ('gh' + 'p_'), ('github' + '_pat'), ('xox' + 'b-'), ('AK' + 'IA'),
+  ('192' + '\.168\.'), ('10' + '\.0\.\d'), ('169' + '\.254'),
+  ('pass' + 'word\s*[:=]'), ('sec' + 'ret\s*[:=]'), ('to' + 'ken\s*[:=]')
 )
 
 Push-Location $repo
