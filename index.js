@@ -413,7 +413,7 @@ function killTree(pid) {
 /* ────────────────────────────── 随包分发的 skill ────────────────────────────── */
 
 /** 随插件分发的 task-console skill 版本；同版本不重复写盘，避免覆盖用户改过的副本。 */
-const SKILL_VERSION = '1.0.0'
+const SKILL_VERSION = '1.0.1'
 const SKILL_MARKER = `<!-- dsh-service-console-skill: ${SKILL_VERSION} -->`
 
 /**
