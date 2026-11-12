@@ -1,0 +1,17 @@
+# dsh-service-console bundle patch
+#
+# 作为 bundle 被 profile 选中时（profile package.json 的 dsh.profile.bundles 里出现
+# "dsh-service-console"），这一层会在 dsh-base / dsh-web-app 之后插入任务台这一行。
+# 行内 config 可在你自己的 profile cordis.patch.yml 里按 id 覆盖。
+- insert:
+    - id: service-console
+      name: "dsh-service-console"
+      inject: [webServer, tools]
+      config:
+        # 把「还在跑」的 DSH 后台任务自动收编进任务表（历史任务用控制台按钮按需导入）
+        autoAdoptJobs: true
+        # 随包把 skills/task-console 安装到 $DSH_HOME/skills；已有同名非本插件 skill 时不动
+        installSkill: true
+        # 探活节奏与 /api/state 的复用窗口（毫秒）
+        probeIntervalMs: 15000
+        stateMaxAgeMs: 1500

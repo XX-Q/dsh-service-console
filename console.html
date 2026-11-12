@@ -1,0 +1,617 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>本机服务任务台</title>
+<style>
+  :root {
+    --bg: #0b1017;
+    --panel: #121a24;
+    --panel-2: #17222f;
+    --line: #22303f;
+    --text: #dfe7ef;
+    --muted: #8497a8;
+    --accent: #4f9cf9;
+    --ok: #3ddc97;
+    --warn: #f2b544;
+    --bad: #ef6461;
+    --gold: #c8a24a;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: radial-gradient(1200px 600px at 20% -10%, #14202c 0%, var(--bg) 60%);
+    color: var(--text);
+    font: 13px/1.5 "Segoe UI", "Microsoft YaHei", system-ui, sans-serif;
+    min-height: 100vh;
+  }
+  header {
+    position: sticky; top: 0; z-index: 20;
+    display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+    padding: 14px 22px;
+    background: rgba(11, 16, 23, .88);
+    backdrop-filter: blur(10px);
+    border-bottom: 1px solid var(--line);
+  }
+  h1 { font-size: 15px; margin: 0; letter-spacing: .5px; font-weight: 600; }
+  h1 small { color: var(--muted); font-weight: 400; margin-left: 8px; font-size: 12px; }
+  .chips { display: flex; gap: 8px; flex-wrap: wrap; }
+  .chip {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 3px 10px; border-radius: 999px;
+    border: 1px solid var(--line); background: var(--panel);
+    font-size: 12px; color: var(--muted);
+  }
+  .chip b { color: var(--text); font-variant-numeric: tabular-nums; }
+  .chip.run b { color: var(--ok); }
+  .chip.past b { color: var(--warn); }
+  .chip.never b { color: var(--muted); }
+  .spacer { flex: 1; }
+  button {
+    font: inherit; color: var(--text); cursor: pointer;
+    background: var(--panel-2); border: 1px solid var(--line);
+    border-radius: 7px; padding: 6px 12px; transition: .15s;
+  }
+  button:hover { border-color: #35506b; background: #1b2836; }
+  button:disabled { opacity: .45; cursor: not-allowed; }
+  button.primary { background: #1d4f86; border-color: #2a6cb5; }
+  button.primary:hover { background: #22609f; }
+  button.ok { color: var(--ok); border-color: #245c46; }
+  button.bad { color: var(--bad); border-color: #5a2b2b; }
+  button.mini { padding: 3px 9px; font-size: 12px; border-radius: 6px; }
+  main { padding: 18px 22px 80px; max-width: 1500px; margin: 0 auto; }
+  .tabs { display: flex; gap: 6px; margin-bottom: 12px; flex-wrap: wrap; }
+  .tab {
+    padding: 5px 12px; border-radius: 7px; border: 1px solid transparent;
+    color: var(--muted); cursor: pointer; font-size: 12.5px;
+  }
+  .tab:hover { color: var(--text); }
+  .tab.on { color: var(--text); background: var(--panel-2); border-color: var(--line); }
+  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+  table { width: 100%; border-collapse: collapse; }
+  thead th {
+    text-align: left; font-weight: 500; font-size: 11.5px; letter-spacing: .6px;
+    color: var(--muted); text-transform: uppercase;
+    padding: 9px 12px; border-bottom: 1px solid var(--line); background: #0f1720;
+    white-space: nowrap;
+  }
+  tbody td { padding: 10px 12px; border-bottom: 1px solid #1a2431; vertical-align: middle; }
+  tbody tr:last-child td { border-bottom: none; }
+  tbody tr:hover { background: #141e29; }
+  .name { font-weight: 600; }
+  .name .sub { display: block; color: var(--muted); font-size: 11.5px; font-weight: 400; margin-top: 2px; }
+  .mono { font-family: ui-monospace, "Cascadia Code", Consolas, monospace; font-size: 11.5px; color: #a9bccd; }
+  .badge {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 2px 9px; border-radius: 999px; font-size: 11.5px; border: 1px solid var(--line);
+  }
+  .badge .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--muted); }
+  .badge.run { color: var(--ok); border-color: #245c46; background: #10231b; }
+  .badge.run .dot { background: var(--ok); box-shadow: 0 0 8px var(--ok); }
+  .badge.past { color: var(--warn); border-color: #5c4a24; background: #241f10; }
+  .badge.past .dot { background: var(--warn); }
+  .badge.never { color: var(--muted); }
+  .badge.unknown { color: #9aa8b8; }
+  .kind { color: var(--muted); font-size: 11.5px; }
+  .when { color: var(--muted); font-size: 12px; white-space: nowrap; }
+  .when b { color: #b9c8d6; font-weight: 500; }
+  .acts { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+  .empty { padding: 26px; text-align: center; color: var(--muted); }
+  section + section { margin-top: 22px; }
+  .sec-title { display: flex; align-items: center; gap: 10px; margin: 0 0 8px; font-size: 12.5px; color: var(--muted); }
+  .sec-title b { color: var(--text); font-size: 13px; }
+  dialog {
+    border: 1px solid var(--line); border-radius: 12px; background: var(--panel);
+    color: var(--text); width: min(720px, 92vw); padding: 0;
+  }
+  dialog::backdrop { background: rgba(4, 8, 12, .7); }
+  .dlg-head { padding: 14px 18px; border-bottom: 1px solid var(--line); font-weight: 600; display: flex; }
+  .dlg-body { padding: 16px 18px; display: grid; gap: 12px; grid-template-columns: 1fr 1fr; }
+  .dlg-body .full { grid-column: 1 / -1; }
+  label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 5px; }
+  input, select, textarea {
+    width: 100%; font: inherit; color: var(--text);
+    background: #0e1620; border: 1px solid var(--line); border-radius: 7px; padding: 8px 10px;
+  }
+  textarea { min-height: 70px; resize: vertical; font-family: ui-monospace, Consolas, monospace; font-size: 12px; }
+  .dlg-foot { padding: 12px 18px; border-top: 1px solid var(--line); display: flex; gap: 10px; justify-content: flex-end; }
+  #logbox {
+    margin: 0; padding: 16px 18px; max-height: 60vh; overflow: auto;
+    font-family: ui-monospace, Consolas, monospace; font-size: 12px; white-space: pre-wrap; color: #b9c8d6;
+    background: #0a1119;
+  }
+  .toast {
+    position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+    background: #17222f; border: 1px solid var(--line); border-radius: 9px;
+    padding: 9px 16px; font-size: 12.5px; z-index: 60; opacity: 0; pointer-events: none; transition: .2s;
+    max-width: 80vw;
+  }
+  .toast.on { opacity: 1; }
+  .toast.err { border-color: #5a2b2b; color: #f3a4a2; }
+  .scanrow { display: flex; align-items: center; gap: 10px; padding: 7px 12px; border-bottom: 1px solid #1a2431; font-size: 12px; }
+  .scanrow:last-child { border-bottom: none; }
+  .scanrow .p { width: 70px; color: var(--accent); font-family: ui-monospace, Consolas, monospace; }
+  .scanrow .c { flex: 1; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .hidden { display: none !important; }
+  #banner { display: none; padding: 9px 14px; border-radius: 8px; background: #2a1f10; border: 1px solid #5c4a24; color: #f2c46b; font-size: 12.5px; margin-bottom: 14px; }
+  #banner.on { display: block; }
+  /* 弹层内嵌（?embed=1）：更紧凑的头部与边距，避免 iframe 里出现双份留白 */
+  body.embed header { padding: 9px 14px; gap: 10px; }
+  body.embed h1 { font-size: 13.5px; }
+  body.embed h1 small { display: none; }
+  body.embed main { padding: 12px 14px 40px; }
+  body.embed .chip { padding: 2px 8px; font-size: 11.5px; }
+  body.embed dialog { width: min(720px, 96vw); }
+</style>
+</head>
+<body>
+<header>
+  <h1>本机服务任务台 <small id="routeHint">/service-console</small></h1>
+  <div class="chips">
+    <span class="chip run"><span class="dot">●</span> 在跑 <b id="s-running">0</b></span>
+    <span class="chip past">以前在跑，现在停了 <b id="s-past">0</b></span>
+    <span class="chip never">从未在跑 <b id="s-never">0</b></span>
+    <span class="chip">合计 <b id="s-total">0</b></span>
+  </div>
+  <div class="spacer"></div>
+  <button id="btn-fullscreen" title="放大到全屏（Esc 退出）">全屏</button>
+  <button id="btn-newtab" title="在新页面打开">新页面</button>
+  <button id="btn-refresh">刷新</button>
+  <button id="btn-scan">扫描本机端口</button>
+  <button class="primary" id="btn-add">登记任务</button>
+</header>
+
+<main>
+  <div id="banner"></div>
+
+  <div class="tabs" id="tabs">
+    <div class="tab on" data-f="all">全部</div>
+    <div class="tab" data-f="running">在跑</div>
+    <div class="tab" data-f="stopped-before">以前在跑，现在停了</div>
+    <div class="tab" data-f="never">从未在跑</div>
+    <div class="tab" data-f="job">仅后台任务</div>
+  </div>
+
+  <div class="panel">
+    <table>
+      <thead>
+        <tr>
+          <th style="width:26%">任务</th>
+          <th style="width:11%">类型</th>
+          <th style="width:12%">状态</th>
+          <th style="width:17%">上次在跑</th>
+          <th style="width:9%">启动次数</th>
+          <th style="width:25%; text-align:right">操作</th>
+        </tr>
+      </thead>
+      <tbody id="rows"><tr><td colspan="6" class="empty">加载中…</td></tr></tbody>
+    </table>
+  </div>
+
+  <section id="jobs-sec">
+    <div class="sec-title"><b>会话后台任务（DSH jobs）</b><span id="jobs-count"></span><span style="flex:1"></span><button class="mini" id="btn-import-jobs">导入历史后台任务</button></div>
+    <div class="panel" id="jobs-panel"><div class="empty">加载中…</div></div>
+  </section>
+
+  <section id="scan-sec" class="hidden">
+    <div class="sec-title"><b>本机监听端口</b><span id="scan-hint"></span></div>
+    <div class="panel" id="scan-panel"></div>
+  </section>
+
+  <section>
+    <div class="sec-title"><b>最近动作</b><span>服务端记录的启停/登记事件（最新 60 条）</span></div>
+    <div class="panel" id="events-panel"><div class="empty">暂无</div></div>
+  </section>
+</main>
+
+<dialog id="dlg-add">
+  <form method="dialog" id="form-add">
+    <div class="dlg-head">登记任务</div>
+    <div class="dlg-body">
+      <div class="full">
+        <label>任务名</label>
+        <input id="f-name" placeholder="例：本地看板 / 轮询脚本 / 抓包脚本" required />
+      </div>
+      <div>
+        <label>类型</label>
+        <select id="f-kind">
+          <option value="command">command — 有启动命令，可一键启停</option>
+          <option value="port">port — 只登记端口，靠 TCP 探活</option>
+          <option value="process">process — 只登记 pid</option>
+        </select>
+      </div>
+      <div>
+        <label>端口（可不填）</label>
+        <input id="f-port" type="number" placeholder="3000" />
+      </div>
+      <div class="full">
+        <label>启动命令（PowerShell 语法；command 类必填）</label>
+        <textarea id="f-command" placeholder="python run_dashboard.py"></textarea>
+      </div>
+      <div class="full">
+        <label>工作目录（绝对路径）</label>
+        <input id="f-cwd" placeholder="D:\\Codes\\crypto\\panel" />
+      </div>
+      <div class="full">
+        <label>备注</label>
+        <input id="f-note" placeholder="用途 / 谁起的 / 注意事项" />
+      </div>
+    </div>
+    <div class="dlg-foot">
+      <button value="cancel" type="button" id="btn-add-cancel">取消</button>
+      <button value="ok" class="primary" id="btn-add-ok" type="button">登记</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="dlg-log">
+  <div class="dlg-head"><span id="log-title">日志</span><div class="spacer"></div><span class="mono" id="log-file"></span></div>
+  <pre id="logbox">加载中…</pre>
+  <div class="dlg-foot">
+    <button id="btn-log-refresh">刷新</button>
+    <button class="primary" id="btn-log-close">关闭</button>
+  </div>
+</dialog>
+
+<div class="toast" id="toast"></div>
+
+<script>
+(() => {
+  const API = location.pathname.replace(/\/+$/, '') + '/api'
+  const EMBED = new URLSearchParams(location.search).get('embed') === '1'
+  if (EMBED) document.body.classList.add('embed')
+  const $ = (id) => document.getElementById(id)
+  let state = null
+  let filter = 'all'
+  let busy = new Set()
+  let logEntryId = null
+
+  const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]))
+
+  const rel = (ms) => {
+    if (!Number.isFinite(ms)) return '—'
+    const d = Date.now() - ms
+    if (d < 0) return '刚刚'
+    if (d < 60000) return Math.max(1, Math.round(d / 1000)) + ' 秒前'
+    if (d < 3600000) return Math.round(d / 60000) + ' 分钟前'
+    if (d < 86400000) return Math.round(d / 3600000) + ' 小时前'
+    return Math.round(d / 86400000) + ' 天前'
+  }
+  const dur = (ms) => {
+    if (!Number.isFinite(ms) || ms <= 0) return '—'
+    if (ms < 60000) return Math.round(ms / 1000) + ' 秒'
+    if (ms < 3600000) return Math.round(ms / 60000) + ' 分'
+    if (ms < 86400000) return (ms / 3600000).toFixed(1) + ' 小时'
+    return (ms / 86400000).toFixed(1) + ' 天'
+  }
+
+  let toastTimer = null
+  const toast = (text, err) => {
+    const el = $('toast')
+    el.textContent = text
+    el.className = 'toast on' + (err ? ' err' : '')
+    clearTimeout(toastTimer)
+    toastTimer = setTimeout(() => { el.className = 'toast' }, 3200)
+  }
+
+  async function post(op, body) {
+    const res = await fetch(API + '/' + op, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      credentials: 'same-origin',
+      body: JSON.stringify(body || {}),
+    })
+    const data = await res.json().catch(() => ({ ok: false, error: 'HTTP ' + res.status }))
+    if (!res.ok || data.ok === false) throw new Error(data.error || ('HTTP ' + res.status))
+    return data
+  }
+
+  const CATEGORY_BADGE = {
+    running: ['run', '在跑'],
+    'stopped-before': ['past', '以前在跑，现在停了'],
+    never: ['never', '从未在跑'],
+    unknown: ['unknown', '未知'],
+  }
+
+  function rowOf(e) {
+    const [cls, label] = CATEGORY_BADGE[e.category] || CATEGORY_BADGE.unknown
+    const target = e.port
+      ? `<span class="mono">${esc(e.host)}:${esc(e.port)}</span>`
+      : e.jobId
+        ? `<span class="mono">job ${esc(e.jobId)}</span>`
+        : e.pid
+          ? `<span class="mono">pid ${esc(e.pid)}</span>`
+          : `<span class="mono">—</span>`
+    const cmd = e.command ? `<span class="sub mono">${esc(e.command)}</span>` : ''
+    const note = e.note ? `<span class="sub">${esc(e.note)}</span>` : ''
+    const running = e.category === 'running'
+    const isJob = e.kind === 'job'
+    const canStart = !isJob && (!!e.command || (e.port && running))
+    return `<tr>
+      <td><div class="name">${esc(e.name)}${cmd}${note}</div></td>
+      <td class="kind">${esc(e.kind)}${e.processName ? `<br><span class="mono">${esc(e.processName)}</span>` : ''}</td>
+      <td><span class="badge ${cls}"><span class="dot"></span>${label}</span>
+          <div class="mono" style="margin-top:4px">${esc(e.status.detail || '')}</div></td>
+      <td class="when">${e.observed.lastSeenRunningAt ? `<b>${rel(e.observed.lastSeenRunningAt)}</b><br><span class="mono">${new Date(e.observed.lastSeenRunningAt).toLocaleString()}</span>` : '<span class="mono">从未</span>'}
+          <div class="mono">累计 ${dur(e.history.totalRuntimeMs)}</div></td>
+      <td class="mono">${e.history.runCount || 0} 次</td>
+      <td><div class="acts">
+        <button class="mini ok" data-act="start" data-id="${e.id}" ${running || !canStart ? 'disabled' : ''}>启动</button>
+        <button class="mini bad" data-act="stop" data-id="${e.id}" ${running ? '' : 'disabled'}>停止</button>
+        <button class="mini" data-act="restart" data-id="${e.id}" ${isJob || !e.command ? 'disabled' : ''}>重启</button>
+        <button class="mini" data-act="logs" data-id="${e.id}" ${isJob ? 'disabled' : ''}>日志</button>
+        <button class="mini" data-act="edit" data-id="${e.id}">编辑</button>
+        <button class="mini" data-act="remove" data-id="${e.id}">删除</button>
+      </div></td>
+    </tr>`
+  }
+
+  function applyFilter(entries) {
+    if (filter === 'all') return entries
+    if (filter === 'job') return entries.filter((e) => e.kind === 'job')
+    return entries.filter((e) => e.category === filter)
+  }
+
+  function render() {
+    if (!state) return
+    const s = state.summary
+    $('s-running').textContent = s.running
+    $('s-past').textContent = s.stoppedBefore
+    $('s-never').textContent = s.never
+    $('s-total').textContent = s.total
+    $('routeHint').textContent = state.route
+
+    const entries = applyFilter(state.entries)
+    $('rows').innerHTML = entries.length
+      ? entries.map(rowOf).join('')
+      : `<tr><td colspan="6" class="empty">${state.entries.length ? '这个筛选下没有任务' : '任务表还是空的：点右上角「登记任务」，或先「扫描本机端口」挑一条登记。'}</td></tr>`
+
+    const jobs = state.jobs || []
+    const shownJobs = jobs.slice(0, 15)
+    $('jobs-count').textContent = jobs.length
+      ? `${jobs.length} 个（本进程内可见${jobs.length > shownJobs.length ? `，仅显示最近 ${shownJobs.length} 个` : ''}）`
+      : '（本进程内暂时没有后台任务）'
+    $('jobs-panel').innerHTML = jobs.length
+      ? shownJobs.map((j) => `<div class="scanrow">
+          <span class="p mono">${esc(j.id.slice(0, 12))}</span>
+          <span style="width:60px" class="kind">${esc(j.kind)}</span>
+          <span class="badge ${j.status === 'running' || j.status === 'stopping' ? 'run' : 'never'}"><span class="dot"></span>${esc(j.status)}</span>
+          <span class="c">${esc(j.label)}${j.detail ? ` · ${esc(j.detail)}` : ''}</span>
+          <span class="mono" style="width:90px">${rel(j.startedAt)}</span>
+          <button class="mini" data-job="adopt" data-id="${esc(j.id)}" ${j.registered ? 'disabled' : ''}>${j.registered ? '已登记' : '登记进任务表'}</button>
+          <button class="mini bad" data-job="kill" data-id="${esc(j.id)}" ${j.status === 'running' || j.status === 'stopping' ? '' : 'disabled'}>停止</button>
+        </div>`).join('')
+      : '<div class="empty">还没有后台任务。你让 agent 跑长任务（job_output/job_kill 那套）时，它们会自动出现在这里。</div>'
+
+    const scan = state.scan || { rows: [] }
+    if ($('scan-sec').classList.contains('hidden') === false) renderScan(scan)
+    else if (scan.rows && scan.rows.length) renderScan(scan)
+
+    const events = state.events || []
+    $('events-panel').innerHTML = events.length
+      ? events.map((e) => `<div class="scanrow">
+          <span class="p mono" style="width:150px">${new Date(e.t).toLocaleTimeString()}</span>
+          <span style="width:96px" class="kind">${esc(e.action)}</span>
+          <span class="c">${esc(e.name || e.id || '')} ${esc(e.result)}</span>
+        </div>`).join('')
+      : '<div class="empty">暂无</div>'
+
+    const banner = $('banner')
+    if (scan.error) {
+      banner.textContent = '端口扫描失败：' + scan.error
+      banner.className = 'on'
+    } else banner.className = ''
+  }
+
+  function renderScan(scan) {
+    $('scan-sec').classList.remove('hidden')
+    $('scan-hint').textContent = scan.at ? `扫描于 ${new Date(scan.at).toLocaleTimeString()} · 点右侧登记` : ''
+    const rows = (scan.rows || []).filter((r) => !r.system)
+    $('scan-panel').innerHTML = rows.length
+      ? rows.map((r) => `<div class="scanrow">
+          <span class="p">:${r.port}</span>
+          <span style="width:150px" class="mono">${esc(r.processName || 'unknown')}${r.pid ? ' · ' + r.pid : ''}</span>
+          <span class="c" title="${esc(r.commandLine)}">${esc(r.commandLine || r.address)}</span>
+          <button class="mini" data-scan="adopt" data-port="${r.port}" data-pid="${r.pid || ''}" data-name="${esc(r.processName || ('port ' + r.port))}" data-cmd="${esc(r.commandLine)}">登记</button>
+        </div>`).join('')
+      : '<div class="empty">没有扫到非系统监听端口。</div>'
+  }
+
+  async function load() {
+    try {
+      const res = await fetch(API + '/state', { credentials: 'same-origin' })
+      const data = await res.json()
+      if (!data.ok) throw new Error(data.error || 'state 读取失败')
+      state = data
+      render()
+    } catch (error) {
+      $('rows').innerHTML = `<tr><td colspan="6" class="empty">读取失败：${esc(error.message)}</td></tr>`
+    }
+  }
+
+  async function withBusy(id, fn) {
+    if (busy.has(id)) return
+    busy.add(id)
+    try { await fn() } catch (error) { toast(error.message, true) } finally { busy.delete(id); load() }
+  }
+
+  document.addEventListener('click', (event) => {
+    const btn = event.target.closest('button')
+    if (!btn) return
+
+    if (btn.dataset.act) {
+      const { act, id } = btn.dataset
+      if (act === 'logs') { openLogs(id); return }
+      if (act === 'edit') { openEdit(id); return }
+      if (act === 'remove') {
+        if (!confirm('从任务表删除这条记录？（不会杀进程）')) return
+        return withBusy(id, async () => {
+          await post('entry/remove', { id })
+          toast('已删除')
+        })
+      }
+      return withBusy(id, async () => {
+        toast(act === 'start' ? '启动中…' : act === 'stop' ? '停止中…' : '重启中…')
+        const data = await post('entry/' + act, { id })
+        toast(data.message || '完成')
+      })
+    }
+
+    if (btn.dataset.job) {
+      const jobId = btn.dataset.id
+      return withBusy(jobId, async () => {
+        if (btn.dataset.job === 'adopt') {
+          await post('job/adopt', { jobId })
+          toast('已登记进任务表')
+        } else {
+          const data = await post('job/kill', { jobId })
+          toast(data.message || '已请求停止')
+        }
+      })
+    }
+
+    if (btn.dataset.scan === 'adopt') {
+      const port = Number(btn.dataset.port)
+      const pid = btn.dataset.pid ? Number(btn.dataset.pid) : null
+      return withBusy('scan-' + port, async () => {
+        await post('entry/add', {
+          name: (btn.dataset.name || 'port ' + port) + ' :' + port,
+          kind: 'port',
+          port,
+          pid,
+          processName: btn.dataset.name || '',
+          note: (btn.dataset.cmd || '').slice(0, 300),
+          source: 'scan',
+        })
+        toast('已登记 :' + port)
+      })
+    }
+  })
+
+  $('tabs').addEventListener('click', (event) => {
+    const tab = event.target.closest('.tab')
+    if (!tab) return
+    ;[...$('tabs').children].forEach((el) => el.classList.toggle('on', el === tab))
+    filter = tab.dataset.f
+    render()
+  })
+
+  $('btn-refresh').addEventListener('click', () => { load(); toast('已刷新') })
+  $('btn-newtab').addEventListener('click', () => {
+    const url = location.origin + location.pathname.replace(/\/+$/, '')
+    window.open(url, '_blank', 'noopener')
+  })
+  $('btn-fullscreen').addEventListener('click', async () => {
+    try {
+      if (document.fullscreenElement) await document.exitFullscreen()
+      else await document.documentElement.requestFullscreen({ navigationUI: 'hide' })
+    } catch (error) {
+      toast('浏览器拒绝了全屏：' + error.message, true)
+    }
+  })
+  document.addEventListener('fullscreenchange', () => {
+    $('btn-fullscreen').textContent = document.fullscreenElement ? '还原' : '全屏'
+  })
+  $('btn-import-jobs').addEventListener('click', async () => {
+    try {
+      const data = await post('jobs/import', {})
+      toast(data.message || '已导入')
+      load()
+    } catch (error) { toast(error.message, true) }
+  })
+  $('btn-scan').addEventListener('click', async () => {
+    try {
+      toast('扫描中…')
+      const data = await post('scan', {})
+      state = state || { entries: [], jobs: [], events: [], summary: { running: 0, stoppedBefore: 0, never: 0, total: 0 }, route: location.pathname }
+      state.scan = { at: data.at, error: data.error, rows: data.rows }
+      renderScan(state.scan)
+      toast(`扫到 ${(data.rows || []).filter((r) => !r.system).length} 个监听端口`)
+    } catch (error) { toast(error.message, true) }
+  })
+
+  $('btn-add').addEventListener('click', () => {
+    $('form-add').reset()
+    $('dlg-add').showModal()
+  })
+  $('btn-add-cancel').addEventListener('click', () => $('dlg-add').close())
+  $('btn-add-ok').addEventListener('click', async () => {
+    const name = $('f-name').value.trim()
+    if (!name) return toast('先填任务名', true)
+    const kind = $('f-kind').value
+    const command = $('f-command').value.trim()
+    if (kind === 'command' && !command) return toast('command 类任务必须填启动命令', true)
+    try {
+      await post('entry/add', {
+        name,
+        kind,
+        command,
+        cwd: $('f-cwd').value.trim(),
+        port: $('f-port').value ? Number($('f-port').value) : null,
+        note: $('f-note').value.trim(),
+      })
+      $('dlg-add').close()
+      toast('已登记')
+      load()
+    } catch (error) { toast(error.message, true) }
+  })
+
+  function openEdit(id) {
+    const entry = (state.entries || []).find((e) => e.id === id)
+    if (!entry) return
+    $('form-add').reset()
+    $('f-name').value = entry.name
+    $('f-kind').value = entry.kind === 'job' ? 'command' : entry.kind
+    $('f-port').value = entry.port ?? ''
+    $('f-command').value = entry.command || ''
+    $('f-cwd').value = entry.cwd || ''
+    $('f-note').value = entry.note || ''
+    $('dlg-add').querySelector('.dlg-head').textContent = '编辑任务 ' + entry.id
+    $('btn-add-ok').onclick = async () => {
+      try {
+        await post('entry/update', {
+          id,
+          patch: {
+            name: $('f-name').value.trim(),
+            command: $('f-command').value.trim(),
+            cwd: $('f-cwd').value.trim(),
+            port: $('f-port').value ? Number($('f-port').value) : undefined,
+            note: $('f-note').value.trim(),
+          },
+        })
+        $('dlg-add').close()
+        toast('已保存')
+        load()
+      } catch (error) { toast(error.message, true) }
+    }
+    $('dlg-add').showModal()
+  }
+
+  async function openLogs(id) {
+    logEntryId = id
+    $('dlg-log').showModal()
+    $('logbox').textContent = '加载中…'
+    await refreshLogs()
+  }
+  async function refreshLogs() {
+    if (!logEntryId) return
+    try {
+      const data = await post('entry/logs', { id: logEntryId })
+      $('log-title').textContent = '日志 · ' + logEntryId
+      $('log-file').textContent = data.file || ''
+      $('logbox').textContent = data.text && data.text.trim() ? data.text : '（还没有日志：command 类任务启动后才会写入）'
+      $('logbox').scrollTop = $('logbox').scrollHeight
+    } catch (error) {
+      $('logbox').textContent = '读取失败：' + error.message
+    }
+  }
+  $('btn-log-refresh').addEventListener('click', refreshLogs)
+  $('btn-log-close').addEventListener('click', () => $('dlg-log').close())
+
+  load()
+  setInterval(() => { if (!document.hidden) load() }, 5000)
+})()
+</script>
+</body>
+</html>

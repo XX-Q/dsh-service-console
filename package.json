@@ -1,0 +1,53 @@
+{
+  "name": "dsh-service-console",
+  "version": "1.0.1",
+  "description": "DeepSeek Harness (DSH) 插件：跨对话的持久化任务台——一张表看清本机服务与后台任务哪些在跑/以前在跑现在停了/从没跑过，支持一键启停、GUI 弹窗面板与 task-console 编码规范 skill",
+  "type": "module",
+  "main": "index.js",
+  "exports": {
+    ".": "./index.js",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "index.js",
+    "console.html",
+    "launcher.js",
+    "cordis.patch.yml",
+    "skills",
+    "scripts",
+    "README.md",
+    "LICENSE"
+  ],
+  "keywords": [
+    "deepseek",
+    "deepseek-harness",
+    "dsh",
+    "dsh-plugin",
+    "cordis",
+    "cordis-plugin",
+    "task-manager",
+    "task-console",
+    "service-manager",
+    "process-manager",
+    "background-jobs",
+    "windows"
+  ],
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "license": "MIT",
+  "author": "XX-Q",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/XX-Q/dsh-service-console.git"
+  },
+  "bugs": {
+    "url": "https://github.com/XX-Q/dsh-service-console/issues"
+  },
+  "homepage": "https://github.com/XX-Q/dsh-service-console#readme"
+}
