@@ -155,6 +155,10 @@ service_console(action="register",
 - `job` 类任务只能停、不能启（由会话里的工具启动）；需要可启停就登记成 `command`。
 - 任务表是单文件 JSON，并发写入按"后写合并"处理，不做跨机同步。
 
+## 提交前自检
+
+`scripts/preflight-secrets.ps1` 会扫描工作树（加 `-History` 扫全部历史）里的本机路径、凭证前缀、内网地址与真实服务名模式，命中即非零退出，避免再把这些示例提交上来。
+
 ## License
 
 MIT © XX-Q
